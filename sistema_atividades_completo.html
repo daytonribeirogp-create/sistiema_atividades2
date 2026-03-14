@@ -1,0 +1,191 @@
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Sistema de Gerenciamento de Atividades</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        input, select { margin: 5px; padding: 5px; }
+        .filter-group { margin-top: 20px; }
+        .btn { padding: 5px 10px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h2>Sistema de Gerenciamento de Atividades</h2>
+    <form id="taskForm">
+        <input type="hidden" id="taskId">
+        <input type="text" id="atividade" placeholder="Atividade" required>
+        <input type="text" id="responsavel" placeholder="Responsável" required>
+        <input type="date" id="inicio">
+        <input type="date" id="prazo">
+        <select id="status">
+            <option value="Pendente">Pendente</option>
+            <option value="Em andamento">Em andamento</option>
+            <option value="Concluído">Concluído</option>
+        </select>
+        <select id="prioridade">
+            <option value="Baixa">Baixa</option>
+            <option value="Média">Média</option>
+            <option value="Alta">Alta</option>
+        </select>
+        <input type="number" id="progresso" placeholder="Progresso (%)" min="0" max="100">
+        <input type="text" id="observacoes" placeholder="Observações">
+        <button type="submit" class="btn">Salvar</button>
+    </form>
+
+    <div class="filter-group">
+        <label>Filtrar por Status:</label>
+        <select id="filterStatus">
+            <option value="">Todos</option>
+            <option value="Pendente">Pendente</option>
+            <option value="Em andamento">Em andamento</option>
+            <option value="Concluído">Concluído</option>
+        </select>
+        <label>Filtrar por Prioridade:</label>
+        <select id="filterPrioridade">
+            <option value="">Todas</option>
+            <option value="Baixa">Baixa</option>
+            <option value="Média">Média</option>
+            <option value="Alta">Alta</option>
+        </select>
+        <label>Filtrar por Responsável:</label>
+        <input type="text" id="filterResponsavel" placeholder="Nome">
+        <button onclick="applyFilters()" class="btn">Aplicar Filtros</button>
+        <button onclick="exportToExcel()" class="btn">Exportar para Excel</button>
+        <button onclick="generatePDF()" class="btn">Gerar PDF</button>
+    </div>
+
+    <table id="taskTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Atividade</th>
+                <th>Responsável</th>
+                <th>Início</th>
+                <th>Prazo</th>
+                <th>Status</th>
+                <th>Prioridade</th>
+                <th>Progresso (%)</th>
+                <th>Observações</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+
+        function renderTasks(data = tasks) {
+            const tbody = document.querySelector('#taskTable tbody');
+            tbody.innerHTML = '';
+            data.forEach((task, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${task.atividade}</td>
+                    <td>${task.responsavel}</td>
+                    <td>${task.inicio}</td>
+                    <td>${task.prazo}</td>
+                    <td>${task.status}</td>
+                    <td>${task.prioridade}</td>
+                    <td>${task.progresso}</td>
+                    <td>${task.observacoes}</td>
+                    <td>
+                        <button onclick="editTask(${index})">Editar</button>
+                        <button onclick="deleteTask(${index})">Excluir</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        document.getElementById('taskForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const id = document.getElementById('taskId').value;
+            const task = {
+                atividade: document.getElementById('atividade').value,
+                responsavel: document.getElementById('responsavel').value,
+                inicio: document.getElementById('inicio').value,
+                prazo: document.getElementById('prazo').value,
+                status: document.getElementById('status').value,
+                prioridade: document.getElementById('prioridade').value,
+                progresso: document.getElementById('progresso').value,
+                observacoes: document.getElementById('observacoes').value
+            };
+            if (id) {
+                tasks[id] = task;
+            } else {
+                tasks.push(task);
+            }
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            renderTasks();
+            this.reset();
+            document.getElementById('taskId').value = '';
+        });
+
+        function editTask(index) {
+            const task = tasks[index];
+            document.getElementById('taskId').value = index;
+            document.getElementById('atividade').value = task.atividade;
+            document.getElementById('responsavel').value = task.responsavel;
+            document.getElementById('inicio').value = task.inicio;
+            document.getElementById('prazo').value = task.prazo;
+            document.getElementById('status').value = task.status;
+            document.getElementById('prioridade').value = task.prioridade;
+            document.getElementById('progresso').value = task.progresso;
+            document.getElementById('observacoes').value = task.observacoes;
+        }
+
+        function deleteTask(index) {
+            if (confirm('Deseja excluir esta tarefa?')) {
+                tasks.splice(index, 1);
+                localStorage.setItem('tasks', JSON.stringify(tasks));
+                renderTasks();
+            }
+        }
+
+        function applyFilters() {
+            const status = document.getElementById('filterStatus').value;
+            const prioridade = document.getElementById('filterPrioridade').value;
+            const responsavel = document.getElementById('filterResponsavel').value.toLowerCase();
+            const filtered = tasks.filter(task =>
+                (status === '' || task.status === status) &&
+                (prioridade === '' || task.prioridade === prioridade) &&
+                (responsavel === '' || task.responsavel.toLowerCase().includes(responsavel))
+            );
+            renderTasks(filtered);
+        }
+
+        function exportToExcel() {
+            let csv = 'ID,Atividade,Responsável,Início,Prazo,Status,Prioridade,Progresso (%),Observações\n';
+            tasks.forEach((task, index) => {
+                csv += `${index + 1},"${task.atividade}","${task.responsavel}","${task.inicio}","${task.prazo}","${task.status}","${task.prioridade}",${task.progresso},"${task.observacoes}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'relatorio_atividades.csv';
+            link.click();
+        }
+
+        function generatePDF() {
+            let content = 'Relatório de Atividades\n\n';
+            tasks.forEach((task, index) => {
+                content += `ID: ${index + 1}\nAtividade: ${task.atividade}\nResponsável: ${task.responsavel}\nInício: ${task.inicio}\nPrazo: ${task.prazo}\nStatus: ${task.status}\nPrioridade: ${task.prioridade}\nProgresso: ${task.progresso}%\nObservações: ${task.observacoes}\n\n`;
+            });
+            const blob = new Blob([content], { type: 'application/pdf' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'relatorio_atividades.pdf';
+            link.click();
+        }
+
+        renderTasks();
+    </script>
+</body>
+</html>
